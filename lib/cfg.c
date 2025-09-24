@@ -28,6 +28,10 @@ struct jose_cfg {
 
     jose_cfg_err_t *err;
     void *misc;
+
+    jose_malloc_t malloc;
+    jose_realloc_t realloc;
+    jose_free_t free;
 };
 
 static struct {
@@ -130,4 +134,60 @@ jose_cfg_err(jose_cfg_t *cfg, const char *file, int line, uint64_t err,
     va_start(ap, fmt);
     c->err(c->misc, file, line, err, fmt, ap);
     va_end(ap);
+}
+
+int
+jose_cfg_set_alloc(jose_cfg_t *cfg, jose_malloc_t pmalloc, 
+                   jose_realloc_t prealloc, jose_free_t pfree)
+{
+    if (!cfg)
+        return EINVAL;
+
+    cfg->malloc = pmalloc;
+    cfg->realloc = prealloc;
+    cfg->free = pfree;
+
+    return 0;
+}
+
+void
+jose_cfg_get_alloc(jose_cfg_t *cfg, jose_malloc_t *pmalloc,
+                   jose_realloc_t *prealloc, jose_free_t *pfree)
+{
+    if (pmalloc)
+        *pmalloc = cfg ? cfg->malloc : NULL;
+    
+    if (prealloc)
+        *prealloc = cfg ? cfg->realloc : NULL;
+    
+    if (pfree)
+        *pfree = cfg ? cfg->free : NULL;
+}
+
+void*
+jose_cfg_malloc(jose_cfg_t *cfg, size_t size)
+{
+    if (cfg && cfg->malloc)
+        return cfg->malloc(size);
+    
+    return malloc(size);
+}
+
+void*
+jose_cfg_realloc(jose_cfg_t *cfg, void *ptr, size_t size)
+{
+    if (cfg && cfg->realloc)
+        return cfg->realloc(ptr, size);
+    
+    return realloc(ptr, size);
+}
+
+void
+jose_cfg_free(jose_cfg_t *cfg, void *ptr)
+{
+    if (cfg && cfg->free) {
+        cfg->free(ptr);
+    } else {
+        free(ptr);
+    }
 }

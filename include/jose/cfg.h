@@ -58,6 +58,13 @@ typedef void (jose_cfg_err_t)(void *misc, const char *file, int line,
                               uint64_t err, const char *fmt, va_list ap);
 
 /**
+ * Custom allocator function type signatures
+ */
+typedef void* (*jose_malloc_t)(size_t size);
+typedef void* (*jose_realloc_t)(void *ptr, size_t size);
+typedef void  (*jose_free_t)(void *ptr);
+
+/**
  * Creates a new configuration instance.
  *
  * \return A newly-allocated configuration instance.
@@ -133,5 +140,49 @@ jose_cfg_err(jose_cfg_t *cfg, const char *file, int line, uint64_t err,
 #define jose_cfg_err(cfg, err, ...) \
     jose_cfg_err(cfg, __FILE__, __LINE__, err, __VA_ARGS__)
 #endif
+
+/**
+ * Set custom memory allocator functions for JOSE operations.
+ *
+ * This allows you to override the default malloc/realloc/free used
+ * internally by JOSE I/O operations. Useful for:
+ * - Memory debugging and tracking
+ * - Custom memory pools
+ * - Secure memory allocation
+ * - Cross-DLL memory management on Windows
+ *
+ * @param cfg     Configuration context (optional, NULL uses global)
+ * @param pmalloc Custom malloc function or NULL for default
+ * @param prealloc Custom realloc function or NULL for default  
+ * @param pfree   Custom free function or NULL for default
+ * @return        0 on success, errno on error
+ */
+int
+jose_cfg_set_alloc(jose_cfg_t *cfg, jose_malloc_t pmalloc, 
+                   jose_realloc_t prealloc, jose_free_t pfree);
+
+/**
+ * Get current memory allocator functions.
+ *
+ * @param cfg      Configuration context (optional, NULL uses global)
+ * @param pmalloc  Pointer to receive current malloc function (optional)
+ * @param prealloc Pointer to receive current realloc function (optional)
+ * @param pfree    Pointer to receive current free function (optional)
+ */
+void
+jose_cfg_get_alloc(jose_cfg_t *cfg, jose_malloc_t *pmalloc,
+                   jose_realloc_t *prealloc, jose_free_t *pfree);
+
+/**
+ * Internal memory allocation functions (for JOSE library use)
+ */
+void*
+jose_cfg_malloc(jose_cfg_t *cfg, size_t size);
+
+void*
+jose_cfg_realloc(jose_cfg_t *cfg, void *ptr, size_t size);
+
+void
+jose_cfg_free(jose_cfg_t *cfg, void *ptr);
 
 /** @} */

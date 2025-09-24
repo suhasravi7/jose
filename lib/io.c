@@ -21,12 +21,14 @@
 
 typedef struct {
     jose_io_t io;
+    jose_cfg_t *cfg;
     void **buf;
     size_t *len;
 } io_malloc_t;
 
 typedef struct {
     jose_io_t io;
+    jose_cfg_t *cfg;
     uint8_t *buf;
     size_t max;
     size_t *len;
@@ -34,11 +36,13 @@ typedef struct {
 
 typedef struct {
     jose_io_t io;
+    jose_cfg_t *cfg;
     FILE *file;
 } io_file_t;
 
 typedef struct {
     jose_io_t io;
+    jose_cfg_t *cfg;
     bool all;
     size_t nnexts;
     jose_io_t *nexts[];
@@ -83,7 +87,7 @@ malloc_feed(jose_io_t *io, const void *in, size_t len)
     if (len == 0)
         return true;
 
-    tmp = realloc(*i->buf, *i->len + len);
+    tmp = jose_cfg_realloc(i->cfg, *i->buf, *i->len + len);
     if (!tmp)
         return false;
 
@@ -106,12 +110,12 @@ malloc_free(jose_io_t *io)
 
     if (i->buf && *i->buf && i->len) {
         zero(*i->buf, *i->len);
-        free(*i->buf);
+        jose_cfg_free(i->cfg, *i->buf);
         *i->len = 0;
     }
 
     zero(i, sizeof(*i));
-    free(i);
+    jose_cfg_free(i->cfg, i);
 }
 
 jose_io_t *
@@ -123,15 +127,18 @@ jose_io_malloc(jose_cfg_t *cfg, void **buf, size_t *len)
     if (!buf || !len)
         return NULL;
 
-    i = calloc(1, sizeof(*i));
+    i = jose_cfg_malloc(cfg, sizeof(*i));
     if (!i)
         return NULL;
+
+    memset(i, 0, sizeof(*i));
 
     io = jose_io_incref(&i->io);
     io->feed = malloc_feed;
     io->done = malloc_done;
     io->free = malloc_free;
 
+    i->cfg = cfg;
     i->buf = buf;
     i->len = len;
     return jose_io_incref(io);
@@ -172,7 +179,7 @@ buffer_free(jose_io_t *io)
 {
     io_buffer_t *i = containerof(io, io_buffer_t, io);
     zero(i, sizeof(*i));
-    free(i);
+    jose_cfg_free(i->cfg, i);
 }
 
 jose_io_t *
@@ -184,15 +191,18 @@ jose_io_buffer(jose_cfg_t *cfg, void *buf, size_t *len)
     if (!buf || !len)
         return NULL;
 
-    i = calloc(1, sizeof(*i));
+    i = jose_cfg_malloc(cfg, sizeof(*i));
     if (!i)
         return NULL;
+
+    memset(i, 0, sizeof(*i));
 
     io = jose_io_incref(&i->io);
     io->feed = buffer_feed;
     io->done = buffer_done;
     io->free = buffer_free;
 
+    i->cfg = cfg;
     i->buf = buf;
     i->max = *len;
     i->len = len;
@@ -219,7 +229,7 @@ file_free(jose_io_t *io)
 {
     io_file_t *i = containerof(io, io_file_t, io);
     zero(i, sizeof(*i));
-    free(i);
+    jose_cfg_free(i->cfg, i);
 }
 
 jose_io_t *
@@ -231,15 +241,18 @@ jose_io_file(jose_cfg_t *cfg, FILE *file)
     if (!file)
         return NULL;
 
-    i = calloc(1, sizeof(*i));
+    i = jose_cfg_malloc(cfg, sizeof(*i));
     if (!i)
         return NULL;
+
+    memset(i, 0, sizeof(*i));
 
     io = jose_io_incref(&i->io);
     io->feed = file_feed;
     io->done = file_done;
     io->free = file_free;
 
+    i->cfg = cfg;
     i->file = file;
     return jose_io_incref(&i->io);
 }
@@ -301,7 +314,7 @@ plex_free(jose_io_t *io)
         jose_io_decref(i->nexts[j]);
 
     zero(i, sizeof(*i));
-    free(i);
+    jose_cfg_free(i->cfg, i);
 }
 
 jose_io_t *
@@ -314,15 +327,18 @@ jose_io_multiplex(jose_cfg_t *cfg, jose_io_t **nexts, bool all)
     while (nexts && nexts[nnexts])
         nnexts++;
 
-    i = calloc(1, sizeof(*i) + sizeof(jose_io_t *) * nnexts);
+    i = jose_cfg_malloc(cfg, sizeof(*i) + sizeof(jose_io_t *) * nnexts);
     if (!i)
         return NULL;
+
+    memset(i, 0, sizeof(*i) + sizeof(jose_io_t *) * nnexts);
 
     io = jose_io_incref(&i->io);
     io->feed = plex_feed;
     io->done = plex_done;
     io->free = plex_free;
 
+    i->cfg = cfg;
     i->all = all;
     i->nnexts = nnexts;
     for (size_t j = 0; nexts && j < nnexts; j++)
