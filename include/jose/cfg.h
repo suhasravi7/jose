@@ -26,6 +26,7 @@
 #include <stddef.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 enum {
     _JOSE_CFG_ERR_BASE = 0x1053000000000000ULL,
